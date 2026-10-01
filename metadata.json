@@ -1,0 +1,6 @@
+{
+  "name": "PGA TOUR 2K25 Course Explorer",
+  "description": "Windows desktop web application to discover, save, and review PGA TOUR 2K25 courses with offline local database and yardage filtering.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
