@@ -18,9 +18,11 @@ export interface TgcListingItem {
   ReviewCount: number;
   Description: string;
   CourseTags: string[];
-  TgcStatus: 'Tour Worthy' | 'Approved' | 'Platinum Tour' | 'Elite Tour' | 'Challenge Circuit' | 'Under Review';
+  TgcStatus: 'Tour Worthy' | 'Approved' | 'Platinum Tour' | 'Elite Tour' | 'Kinetic Tour' | 'Challenge Circuit' | 'Beer League' | 'Under Review';
   TgcListingUrl: string;
   IsLidar: boolean;
+  IsRealWorld?: boolean;
+  Theme?: string;
   GreenSpeed: string;
   Firmness: string;
   TeeInformation?: string;

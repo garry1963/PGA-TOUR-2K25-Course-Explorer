@@ -26,12 +26,30 @@ export type DifficultyTier =
   | 'Difficult'
   | 'Very Difficult';
 
+export type TgcCourseTheme =
+  | 'Autumn'
+  | 'Boreal'
+  | 'Countryside'
+  | 'Delta'
+  | 'Desert'
+  | 'Harvest'
+  | 'Highlands'
+  | 'Rustic'
+  | 'Steppe'
+  | 'Swiss'
+  | 'Links'
+  | 'Temperate'
+  | 'Tropical'
+  | 'Winter';
+
 export type TgcTourStatus =
   | 'Tour Worthy'
   | 'Approved'
   | 'Platinum Tour'
   | 'Elite Tour'
+  | 'Kinetic Tour'
   | 'Challenge Circuit'
+  | 'Beer League'
   | 'Under Review';
 
 export interface Course {
@@ -77,6 +95,8 @@ export interface Course {
   TgcStatus?: TgcTourStatus;
   TgcListingUrl?: string;
   IsLidar?: boolean;
+  IsRealWorld?: boolean;
+  Theme?: TgcCourseTheme;
   GreenSpeed?: string;
   Firmness?: string;
 }

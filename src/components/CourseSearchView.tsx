@@ -445,7 +445,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
               <Award className="w-3.5 h-3.5 text-amber-400" />
               <span>TGC Full Library</span>
               <span className="text-[9px] uppercase px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded font-mono">
-                130+
+                1,000+
               </span>
             </button>
           )}

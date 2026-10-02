@@ -363,7 +363,7 @@ export default function App() {
             favouritesCount: favourites.length,
             reviewsCount: reviews.length,
             collectionsCount: collections.length,
-            tgcLibraryCount: tgcCoursesCount || 130,
+            tgcLibraryCount: tgcCoursesCount || 1120,
           }}
           settings={settings}
           onToggleUnit={handleToggleYardageUnit}

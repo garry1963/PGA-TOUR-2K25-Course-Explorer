@@ -200,7 +200,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black">
                 Featured Library
               </span>
-              <span className="text-xs text-amber-300 font-mono">130+ Verified Courses</span>
+              <span className="text-xs text-amber-300 font-mono">1,000+ Verified Courses</span>
             </div>
             <h2 className="text-sm lg:text-base font-bold text-white mt-1">
               TGC Tours Official 2K25 Full Course Library

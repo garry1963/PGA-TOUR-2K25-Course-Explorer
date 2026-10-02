@@ -63,6 +63,7 @@ export function createGolfSvgDataUrl(title: string, sub: string, accentHex: stri
 // Authentic TGC Tours 2K25 Listings (https://www.tgctours.com/Course/Tgc2k25Listings)
 import { TGC_2K25_LISTINGS_DATA } from '../data/tgc2k25Listings';
 import { EXTENDED_TGC_2K25_COURSES } from '../data/tgc2k25Courses';
+import { TGC_1000_COURSES } from '../data/tgc1000Courses';
 
 // Build map of extended courses for coordinate and rich metadata lookup
 const extendedCoursesMap = new Map<string, Course>();
@@ -119,6 +120,8 @@ const listingsMapped: Course[] = TGC_2K25_LISTINGS_DATA.map((item) => {
     TgcStatus: item.TgcStatus,
     TgcListingUrl: item.TgcListingUrl,
     IsLidar: item.IsLidar,
+    IsRealWorld: item.IsRealWorld ?? (item.CourseTags ? item.CourseTags.includes('LiDAR') || item.CourseTags.includes('Major Venue') : false),
+    Theme: (item.Theme as any) || (item.CourseType === 'Links' ? 'Links' : (item.CourseType === 'Desert' ? 'Desert' : (item.CourseType === 'Mountain' ? 'Swiss' : (item.CourseType === 'Coastal' ? 'Tropical' : 'Temperate')))),
     GreenSpeed: item.GreenSpeed,
     Firmness: item.Firmness,
   };
@@ -128,9 +131,67 @@ const listingsMapped: Course[] = TGC_2K25_LISTINGS_DATA.map((item) => {
 const seenCourseIds = new Set(listingsMapped.map((c) => c.CourseID));
 const additionalTgcCourses: Course[] = EXTENDED_TGC_2K25_COURSES.filter(
   (c) => !seenCourseIds.has(c.CourseID)
-);
+).map((c) => ({
+  ...c,
+  IsRealWorld: c.IsRealWorld ?? (c.IsLidar || (c.CourseTags ? c.CourseTags.includes('LiDAR') : false)),
+  Theme: c.Theme || (c.CourseType === 'Links' ? 'Links' : (c.CourseType === 'Mountain' ? 'Swiss' : 'Boreal')),
+}));
 
-export const TGC_2K25_COURSES: Course[] = [...listingsMapped, ...additionalTgcCourses];
+// Map 1000+ course collection
+const thousandMapped: Course[] = TGC_1000_COURSES.map((item) => {
+  const accent = item.TgcStatus === 'Tour Worthy' ? '#eab308' : item.TgcStatus === 'Platinum Tour' ? '#c084fc' : '#34d399';
+  return {
+    CourseID: item.CourseID,
+    ExternalCourseID: item.ExternalCourseID,
+    CourseName: item.CourseName,
+    CreatorName: item.CreatorName,
+    SourceType: item.SourceType,
+    CourseType: item.CourseType,
+    Country: item.Country,
+    Region: item.Region,
+    City: item.City,
+    LocationText: item.LocationText,
+    Latitude: null,
+    Longitude: null,
+    CourseYardage: item.CourseYardage,
+    CourseYardageUnit: 'yards',
+    Difficulty: item.Difficulty,
+    DifficultyTier: item.DifficultyTier,
+    CommunityRating: item.CommunityRating,
+    ReviewCount: item.ReviewCount,
+    Description: item.Description,
+    NumberOfHoles: item.NumberOfHoles,
+    Par: item.Par,
+    CourseImagePath: '',
+    CourseImageURL: createGolfSvgDataUrl(
+      item.CourseName,
+      `${item.LocationText} · ${item.CourseYardage.toLocaleString()} yds`,
+      accent,
+      '#132e22'
+    ),
+    CourseURL: item.TgcListingUrl || 'https://www.tgctours.com/Course/Tgc2k25Listings',
+    TeeInformation: item.TeeInformation || `${item.CourseYardage.toLocaleString()} yds · Par ${item.Par}`,
+    GreenInformation: item.GreenInformation || `${item.GreenSpeed} · ${item.Firmness}`,
+    FairwayInformation: item.FairwayInformation || `${item.Firmness} championship turf`,
+    CourseTags: item.CourseTags,
+    Popularity: Math.round(item.CommunityRating * 19 + 5),
+    PlayCount: Math.round(item.ReviewCount * 32 + 5000),
+    CreatedDate: '2025-01-20',
+    UpdatedDate: '2025-09-20',
+    LastRetrievedDate: new Date().toISOString(),
+    IsFavourite: false,
+    IsSaved: false,
+    TgcStatus: item.TgcStatus as any,
+    TgcListingUrl: item.TgcListingUrl,
+    IsLidar: item.IsLidar,
+    IsRealWorld: item.IsRealWorld,
+    Theme: item.Theme as any,
+    GreenSpeed: item.GreenSpeed,
+    Firmness: item.Firmness,
+  };
+});
+
+export const TGC_2K25_COURSES: Course[] = [...listingsMapped, ...additionalTgcCourses, ...thousandMapped];
 
 // Master Course Catalog representing realistic PGA TOUR 2K25 Official & Community courses
 const INITIAL_COURSES: Course[] = [
