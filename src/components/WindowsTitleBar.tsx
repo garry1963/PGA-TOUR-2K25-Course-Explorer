@@ -9,6 +9,7 @@ import {
   RefreshCw,
   FolderSync,
   Compass,
+  Plus,
 } from 'lucide-react';
 import { AppSettings } from '../types/golf';
 
@@ -18,6 +19,7 @@ interface WindowsTitleBarProps {
   onOpenSearch: () => void;
   onOpenSyncModal: () => void;
   onNavigate: (view: string) => void;
+  onOpenAddCourseModal?: () => void;
 }
 
 export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
@@ -25,6 +27,7 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
   onUpdateSettings,
   onOpenSearch,
   onOpenSyncModal,
+  onOpenAddCourseModal,
 }) => {
   const [isMaximized, setIsMaximized] = React.useState(true);
 
@@ -73,6 +76,18 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
           <FolderSync className="w-3.5 h-3.5 text-emerald-400" />
           <span className="hidden sm:inline">Sync Data</span>
         </button>
+
+        {/* Add Custom Course & Collection Assignment Action */}
+        {onOpenAddCourseModal && (
+          <button
+            onClick={onOpenAddCourseModal}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-semibold rounded border border-emerald-500/50 text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+            title="Add a custom course with all course specifications and save to any collection"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Add Course</span>
+          </button>
+        )}
 
         {/* Online / Offline Simulator & Status Badge (Section 32) */}
         <button

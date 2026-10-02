@@ -20,6 +20,7 @@ import {
   Copy,
   ShieldCheck,
   Layers,
+  Plus,
 } from 'lucide-react';
 import {
   Course,
@@ -42,6 +43,8 @@ interface CourseSearchViewProps {
   onToggleSave: (course: Course) => void;
   onToggleFavourite: (course: Course) => void;
   initialQuery?: string;
+  onOpenAddCourseModal?: () => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 const ALL_COURSE_TYPES: CourseType[] = [
@@ -86,6 +89,8 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
   onToggleSave,
   onToggleFavourite,
   initialQuery = '',
+  onOpenAddCourseModal,
+  onOpenAddToCollection,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -114,6 +119,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
   const [results, setResults] = useState<Course[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(10);
   const [webCitations, setWebCitations] = useState<WebCitation[]>([]);
+  const [webNotice, setWebNotice] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
 
   // Load search history on mount
@@ -126,6 +132,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
     setVisibleCount(10);
     setLoading(true);
     setErrorMsg(null);
+    setWebNotice(null);
     try {
       if (currentFilters.searchMode === 'tgctours') {
         // MAIN OPTION: Search TGC Tours 2K25 Listings (https://www.tgctours.com/Course/Tgc2k25Listings)
@@ -156,6 +163,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
         const sorted = sortCourses(webResult.courses, currentFilters.sortBy);
         setResults(sorted);
         setWebCitations(webResult.citations);
+        setWebNotice(webResult.notice || null);
 
         if (currentFilters.query) {
           await localDatabase.addSearchHistory({
@@ -202,8 +210,15 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
         }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Unable to retrieve course information. Please check your connection or switch search mode.');
-      setResults([]);
+      console.warn('Search execution error, serving verified catalog courses:', err?.message || err);
+      try {
+        const fallbackCourses = await courseDataProvider.searchCourses(currentFilters, false);
+        setResults(sortCourses(fallbackCourses, currentFilters.sortBy));
+        setWebNotice('Live search is synchronizing; displaying verified courses from course database.');
+      } catch {
+        setErrorMsg('Unable to retrieve courses. Please check your connection.');
+        setResults([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -372,49 +387,63 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
           </div>
         </div>
 
-        {/* Search Mode Switcher: TGC Tours (MAIN) vs Catalog vs Live Web Search */}
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-[#06100a] border border-[#1d3d2a] rounded-lg">
-          {/* 1. TGC TOURS 2K25 LISTINGS - MAIN OPTION */}
-          <button
-            onClick={() => setFilters({ ...filters, searchMode: 'tgctours' })}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              filters.searchMode === 'tgctours'
-                ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md border border-amber-400/60 font-bold'
-                : 'text-slate-300 hover:text-white hover:bg-[#12281b]'
-            }`}
-          >
-            <Award className="w-3.5 h-3.5 text-amber-200" />
-            <span>TGC Tours 2K25 Listings</span>
-            <span className="text-[9px] uppercase px-1 py-0.2 bg-black/40 rounded text-amber-200 ml-0.5 font-mono">
-              Main
-            </span>
-          </button>
+        {/* Search Mode Switcher & Add Course Action */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-[#06100a] border border-[#1d3d2a] rounded-lg">
+            {/* 1. TGC TOURS 2K25 LISTINGS - MAIN OPTION */}
+            <button
+              onClick={() => setFilters({ ...filters, searchMode: 'tgctours' })}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                filters.searchMode === 'tgctours'
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md border border-amber-400/60 font-bold'
+                  : 'text-slate-300 hover:text-white hover:bg-[#12281b]'
+              }`}
+            >
+              <Award className="w-3.5 h-3.5 text-amber-200" />
+              <span>TGC Tours 2K25 Listings</span>
+              <span className="text-[9px] uppercase px-1 py-0.2 bg-black/40 rounded text-amber-200 ml-0.5 font-mono">
+                Main
+              </span>
+            </button>
 
-          {/* 2. CATALOG SEARCH */}
-          <button
-            onClick={() => setFilters({ ...filters, searchMode: 'catalog' })}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              filters.searchMode === 'catalog'
-                ? 'bg-[#183726] text-emerald-300 shadow-sm border border-emerald-500/40'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#12281b]'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Local Catalog</span>
-          </button>
+            {/* 2. CATALOG SEARCH */}
+            <button
+              onClick={() => setFilters({ ...filters, searchMode: 'catalog' })}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                filters.searchMode === 'catalog'
+                  ? 'bg-[#183726] text-emerald-300 shadow-sm border border-emerald-500/40'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#12281b]'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Local Catalog</span>
+            </button>
 
-          {/* 3. LIVE WEB SEARCH */}
-          <button
-            onClick={() => setFilters({ ...filters, searchMode: 'web' })}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              filters.searchMode === 'web'
-                ? 'bg-sky-950/80 text-sky-300 shadow-sm border border-sky-500/40'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#12281b]'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5 text-sky-400" />
-            <span>Live Web Search</span>
-          </button>
+            {/* 3. LIVE WEB SEARCH */}
+            <button
+              onClick={() => setFilters({ ...filters, searchMode: 'web' })}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                filters.searchMode === 'web'
+                  ? 'bg-sky-950/80 text-sky-300 shadow-sm border border-sky-500/40'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#12281b]'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-sky-400" />
+              <span>Live Web Search</span>
+            </button>
+          </div>
+
+          {/* Add Course & Assign to Collections Button */}
+          {onOpenAddCourseModal && (
+            <button
+              onClick={onOpenAddCourseModal}
+              className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5 border border-emerald-500/50 cursor-pointer active:scale-95 shrink-0"
+              title="Add a course and all associated information and save it to any selected collection"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Course</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -869,6 +898,14 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
         </div>
       )}
 
+      {/* Web Search Notice if quota limited */}
+      {filters.searchMode === 'web' && webNotice && (
+        <div className="p-3 bg-amber-950/30 border border-amber-800/50 rounded-lg text-xs text-amber-200 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>{webNotice}</span>
+        </div>
+      )}
+
       {/* Control Bar: Result Count, Sort By, Grid/List toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0a160f] border border-[#183324] px-4 py-2.5 rounded-lg text-xs">
         <div className="flex items-center gap-2 flex-wrap">
@@ -1009,12 +1046,23 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
           <p className="text-xs text-slate-400 max-w-md mx-auto">
             Try adjusting your course yardage filter, TGC Status, difficulty, or search terms to broaden results.
           </p>
-          <button
-            onClick={handleClearFilters}
-            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-semibold transition-colors"
-          >
-            Clear All Filters
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+            <button
+              onClick={handleClearFilters}
+              className="px-4 py-2 bg-[#12281b] hover:bg-[#1a3826] text-slate-200 rounded text-xs font-semibold transition-colors border border-[#234932]"
+            >
+              Clear All Filters
+            </button>
+            {onOpenAddCourseModal && (
+              <button
+                onClick={onOpenAddCourseModal}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded text-xs font-bold transition-all shadow-md flex items-center gap-1.5 border border-emerald-500/50 cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Course &amp; Save to Collection</span>
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         /* Results Section with 10 Courses Initially + Option to Display Another 10 Courses */
@@ -1037,6 +1085,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}

@@ -26,6 +26,8 @@ import { MapView } from './components/MapView';
 import { SettingsView } from './components/SettingsView';
 import { CourseDetailsModal } from './components/CourseDetailsModal';
 import { SyncModal } from './components/SyncModal';
+import { AddCourseModal } from './components/AddCourseModal';
+import { AddToCollectionModal } from './components/AddToCollectionModal';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
@@ -39,6 +41,9 @@ export default function App() {
   // Selected course for details view
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showAddCourseModal, setShowAddCourseModal] = useState(false);
+  const [addCourseDefaultCollectionId, setAddCourseDefaultCollectionId] = useState<string | undefined>(undefined);
+  const [courseToAddToCollection, setCourseToAddToCollection] = useState<Course | null>(null);
 
   // Helper to combine course arrays while deduplicating by CourseID
   const combineCourses = (...courseLists: Course[][]): Course[] => {
@@ -240,6 +245,88 @@ export default function App() {
     setRecentlyViewedCourses([]);
   };
 
+  // Open Add Course Modal with optional default collection
+  const handleOpenAddCourseModal = (collectionId?: string) => {
+    setAddCourseDefaultCollectionId(collectionId);
+    setShowAddCourseModal(true);
+  };
+
+  // Save new course with full specifications and associate with selected collections
+  const handleSaveNewCourse = async (
+    courseData: Omit<
+      Course,
+      'CourseID' | 'ExternalCourseID' | 'CreatedDate' | 'UpdatedDate' | 'LastRetrievedDate' | 'IsSaved'
+    >,
+    selectedCollectionIds: string[]
+  ): Promise<Course> => {
+    const timestamp = Date.now();
+    const newCourseId = `custom-${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
+    const newExternalId = `USR-2K25-${Math.floor(1000 + Math.random() * 9000)}`;
+    const nowIso = new Date().toISOString();
+
+    const fullCourse: Course = {
+      ...courseData,
+      CourseID: newCourseId,
+      ExternalCourseID: newExternalId,
+      CreatedDate: nowIso.slice(0, 10),
+      UpdatedDate: nowIso.slice(0, 10),
+      LastRetrievedDate: nowIso,
+      IsSaved: true,
+      Popularity: courseData.Popularity || 85,
+      PlayCount: courseData.PlayCount || 1500,
+    };
+
+    // 1. Save course to persistent database
+    await localDatabase.saveCourse(fullCourse);
+
+    // 2. Add course to in-memory data provider catalog
+    courseDataProvider.addCustomCourse(fullCourse);
+
+    // 3. Add to each selected collection
+    for (const colId of selectedCollectionIds) {
+      await localDatabase.addCourseToCollection(colId, newCourseId);
+    }
+
+    // 4. Refresh local data across app
+    await refreshLocalData();
+
+    return fullCourse;
+  };
+
+  // Create new collection directly from modal
+  const handleCreateCollectionFromModal = async (name: string, description: string): Promise<CourseCollection> => {
+    const newCol: CourseCollection = {
+      CollectionID: `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      CollectionName: name,
+      Description: description,
+      CreatedDate: new Date().toISOString().slice(0, 10),
+      CourseIDs: [],
+    };
+    await localDatabase.saveCollection(newCol);
+    await refreshLocalData();
+    return newCol;
+  };
+
+  // Save existing course and its specifications into selected collections
+  const handleSaveCourseToCollections = async (course: Course, selectedCollectionIds: string[]) => {
+    // 1. Ensure course is saved in local persistent database with all specifications
+    await localDatabase.saveCourse(course);
+    courseDataProvider.addCustomCourse(course);
+
+    // 2. Synchronize selected collections
+    for (const col of collections) {
+      const isSelected = selectedCollectionIds.includes(col.CollectionID);
+      const hasCourse = col.CourseIDs.includes(course.CourseID);
+      if (isSelected && !hasCourse) {
+        await localDatabase.addCourseToCollection(col.CollectionID, course.CourseID);
+      } else if (!isSelected && hasCourse) {
+        await localDatabase.removeCourseFromCollection(col.CollectionID, course.CourseID);
+      }
+    }
+
+    await refreshLocalData();
+  };
+
   const favourites = combineCourses(savedCourses.filter((c) => c.IsFavourite));
 
   return (
@@ -250,6 +337,7 @@ export default function App() {
         onUpdateSettings={handleUpdateSettings}
         onOpenSearch={() => setCurrentView('search')}
         onOpenSyncModal={() => setShowSyncModal(true)}
+        onOpenAddCourseModal={() => handleOpenAddCourseModal()}
         onNavigate={(view) => setCurrentView(view as NavView)}
       />
 
@@ -267,6 +355,7 @@ export default function App() {
           }}
           settings={settings}
           onToggleUnit={handleToggleYardageUnit}
+          onOpenAddCourseModal={() => handleOpenAddCourseModal()}
         />
 
         {/* Dynamic Main Content Area */}
@@ -282,6 +371,8 @@ export default function App() {
               onToggleSave={handleToggleSaveCourse}
               onToggleFavourite={handleToggleFavourite}
               onNavigate={setCurrentView}
+              onOpenAddCourseModal={() => handleOpenAddCourseModal()}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
             />
           )}
 
@@ -293,6 +384,8 @@ export default function App() {
               onViewCourse={handleViewCourse}
               onToggleSave={handleToggleSaveCourse}
               onToggleFavourite={handleToggleFavourite}
+              onOpenAddCourseModal={() => handleOpenAddCourseModal()}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
             />
           )}
 
@@ -305,6 +398,8 @@ export default function App() {
               onToggleSave={handleToggleSaveCourse}
               onToggleFavourite={handleToggleFavourite}
               onOpenSyncModal={() => setShowSyncModal(true)}
+              onOpenAddCourseModal={() => handleOpenAddCourseModal()}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
             />
           )}
 
@@ -316,6 +411,7 @@ export default function App() {
               onViewCourse={handleViewCourse}
               onToggleSave={handleToggleSaveCourse}
               onToggleFavourite={handleToggleFavourite}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
             />
           )}
 
@@ -355,6 +451,9 @@ export default function App() {
               onUpdateCollection={handleUpdateCollection}
               onDeleteCollection={handleDeleteCollection}
               onRemoveCourseFromCollection={handleRemoveCourseFromCollection}
+              onOpenAddCourseModal={handleOpenAddCourseModal}
+              onAddToCollection={handleAddToCollection}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
             />
           )}
 
@@ -390,6 +489,19 @@ export default function App() {
           onDeleteReview={handleDeleteReview}
           onSavePersonalNotes={handleSavePersonalNotes}
           onAddToCollection={handleAddToCollection}
+          onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
+        />
+      )}
+
+      {/* Add Course To Collection Modal */}
+      {courseToAddToCollection && (
+        <AddToCollectionModal
+          course={courseToAddToCollection}
+          collections={collections}
+          yardageUnit={settings.yardageUnit}
+          onClose={() => setCourseToAddToCollection(null)}
+          onSaveToCollections={handleSaveCourseToCollections}
+          onCreateCollection={handleCreateCollectionFromModal}
         />
       )}
 
@@ -400,6 +512,20 @@ export default function App() {
           simulateOffline={settings.simulateOffline}
           onClose={() => setShowSyncModal(false)}
           onSyncCompleted={refreshLocalData}
+        />
+      )}
+
+      {/* Add Course Modal (Add Course with full specs & save to selected collections) */}
+      {showAddCourseModal && (
+        <AddCourseModal
+          collections={collections}
+          defaultCollectionId={addCourseDefaultCollectionId}
+          onClose={() => {
+            setShowAddCourseModal(false);
+            setAddCourseDefaultCollectionId(undefined);
+          }}
+          onSaveCourse={handleSaveNewCourse}
+          onCreateCollection={handleCreateCollectionFromModal}
         />
       )}
     </div>

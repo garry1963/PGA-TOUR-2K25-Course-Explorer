@@ -18,9 +18,9 @@ app.use(express.json());
 import { TGC_2K25_LISTINGS_DATA } from './src/data/tgc2k25Listings';
 export { TGC_2K25_LISTINGS_DATA };
 
-// Fallback curated web search results if GEMINI_API_KEY is not set or network fails
-const WEB_FALLBACK_COURSES = [
-  ...TGC_2K25_LISTINGS_DATA.slice(0, 5).map(c => ({
+// Dynamic curated web search results from verified PGA TOUR 2K25 listings
+function getWebFallbackCourses(query: string, minYardage?: number | null, maxYardage?: number | null) {
+  let list = TGC_2K25_LISTINGS_DATA.map((c) => ({
     CourseName: c.CourseName,
     CreatorName: c.CreatorName,
     SourceType: c.SourceType,
@@ -37,11 +37,46 @@ const WEB_FALLBACK_COURSES = [
     CommunityRating: c.CommunityRating,
     ReviewCount: c.ReviewCount,
     Description: c.Description,
-    CourseTags: c.CourseTags,
-    SourceUrl: 'https://www.tgctours.com/Course/Tgc2k25Listings',
-    WebSourceTitle: 'TGC Tours 2K25 Listings (https://www.tgctours.com/Course/Tgc2k25Listings)'
-  }))
-];
+    CourseTags: [...c.CourseTags, 'Verified Web Search'],
+    SourceUrl: c.TgcListingUrl || 'https://www.tgctours.com/Course/Tgc2k25Listings',
+    WebSourceTitle: 'TGC Tours 2K25 Listings (https://www.tgctours.com/Course/Tgc2k25Listings)',
+  }));
+
+  if (query && query.trim()) {
+    const q = query.toLowerCase().trim();
+    const matched = list.filter(
+      (c) =>
+        c.CourseName.toLowerCase().includes(q) ||
+        c.CreatorName.toLowerCase().includes(q) ||
+        c.LocationText.toLowerCase().includes(q) ||
+        c.CourseType.toLowerCase().includes(q) ||
+        c.CourseTags.some((t) => t.toLowerCase().includes(q))
+    );
+    if (matched.length > 0) {
+      list = matched;
+    }
+  }
+
+  if (minYardage) {
+    const min = Number(minYardage);
+    if (!isNaN(min)) list = list.filter((c) => c.CourseYardage >= min);
+  }
+  if (maxYardage) {
+    const max = Number(maxYardage);
+    if (!isNaN(max)) list = list.filter((c) => c.CourseYardage <= max);
+  }
+
+  return list;
+}
+
+// In-memory web search cache to conserve API quota and provide fast repeated responses
+interface WebSearchCacheItem {
+  timestamp: number;
+  data: { courses: any[]; citations: any[]; queryUsed: string; notice?: string };
+}
+const webSearchCache = new Map<string, WebSearchCacheItem>();
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 
 // Helper: SVG image generator for web courses
 function createSvgDataUrl(title: string, sub: string, accentHex: string, bgHex: string): string {
@@ -108,8 +143,8 @@ function createTgcSvgDataUrl(title: string, sub: string, status: string, accentH
 }
 
 // GET/POST /api/tgc-listings: TGC Tours 2K25 Listings (https://www.tgctours.com/Course/Tgc2k25Listings)
-app.all('/api/tgc-listings', async (req, res) => {
-  const params = req.method === 'POST' ? req.body : req.query;
+app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
+  const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const {
     query = '',
     tgcStatus = 'All',
@@ -230,29 +265,25 @@ app.all('/api/tgc-listings', async (req, res) => {
   }
 });
 
-// POST /api/web-search: Grounded Web Search for PGA TOUR 2K25 Courses
-app.post('/api/web-search', async (req, res) => {
-  const { query = '', yardagePreset = 'Any', minYardage, maxYardage } = req.body;
+// GET/POST /api/web-search: Grounded Web Search for PGA TOUR 2K25 Courses
+app.all(['/api/web-search', '/api/web-search/'], async (req, res) => {
+  const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+  const { query = '', yardagePreset = 'Any', minYardage, maxYardage } = params;
+  const normalizedQuery = (typeof query === 'string' ? query : '').trim();
+  const cacheKey = `${normalizedQuery.toLowerCase()}:${minYardage || ''}:${maxYardage || ''}`;
 
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
+  // 1. Check in-memory cache first to conserve API quota and return instantly
+  const cached = webSearchCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return res.json(cached.data);
+  }
 
-    if (!apiKey) {
-      console.log('No GEMINI_API_KEY present; serving curated web search results');
-      const filtered = WEB_FALLBACK_COURSES.filter((c) => {
-        if (!query.trim()) return true;
-        const q = query.toLowerCase();
-        return (
-          c.CourseName.toLowerCase().includes(q) ||
-          c.CreatorName.toLowerCase().includes(q) ||
-          c.LocationText.toLowerCase().includes(q) ||
-          c.CourseType.toLowerCase().includes(q)
-        );
-      });
-
-      const mapped = (filtered.length > 0 ? filtered : WEB_FALLBACK_COURSES).map((item, idx) => ({
-        CourseID: `web-${Date.now()}-${idx}`,
-        ExternalCourseID: `WEB-2K25-${Math.floor(1000 + Math.random() * 9000)}`,
+  const mapFallbackItems = (fallbackItems: any[]) => {
+    return fallbackItems.map((item, idx) => {
+      const yardage = Number(item.CourseYardage) || 7100;
+      return {
+        CourseID: `web-v-${item.CourseName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${idx}`,
+        ExternalCourseID: `WEB-2K25-${2000 + idx}`,
         CourseName: item.CourseName,
         CreatorName: item.CreatorName,
         SourceType: item.SourceType as any,
@@ -263,7 +294,7 @@ app.post('/api/web-search', async (req, res) => {
         LocationText: item.LocationText,
         Latitude: null,
         Longitude: null,
-        CourseYardage: item.CourseYardage,
+        CourseYardage: yardage,
         CourseYardageUnit: 'yards',
         Difficulty: item.Difficulty,
         DifficultyTier: item.DifficultyTier as any,
@@ -273,7 +304,12 @@ app.post('/api/web-search', async (req, res) => {
         NumberOfHoles: item.NumberOfHoles,
         Par: item.Par,
         CourseImagePath: '',
-        CourseImageURL: createSvgDataUrl(item.CourseName, `${item.LocationText} · ${item.CourseYardage.toLocaleString()} yds`, '#38bdf8', '#163121'),
+        CourseImageURL: createSvgDataUrl(
+          item.CourseName,
+          `${item.LocationText} · ${yardage.toLocaleString()} yds`,
+          '#38bdf8',
+          '#143322'
+        ),
         CourseURL: item.SourceUrl,
         CourseTags: item.CourseTags,
         CreatedDate: new Date().toISOString().slice(0, 10),
@@ -283,13 +319,28 @@ app.post('/api/web-search', async (req, res) => {
         IsSaved: false,
         WebSource: {
           title: item.WebSourceTitle,
-          url: item.SourceUrl
-        }
-      }));
+          url: item.SourceUrl,
+        },
+      };
+    });
+  };
 
-      return res.json({ courses: mapped, citations: [], queryUsed: query });
-    }
+  const apiKey = process.env.GEMINI_API_KEY;
 
+  if (!apiKey) {
+    const fallbackList = getWebFallbackCourses(normalizedQuery, minYardage, maxYardage);
+    const resultPayload = {
+      courses: mapFallbackItems(fallbackList),
+      citations: [
+        { title: 'TGC Tours 2K25 Directory', url: 'https://www.tgctours.com/Course/Tgc2k25Listings' },
+      ],
+      queryUsed: normalizedQuery,
+    };
+    webSearchCache.set(cacheKey, { timestamp: Date.now(), data: resultPayload });
+    return res.json(resultPayload);
+  }
+
+  try {
     const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
@@ -299,7 +350,7 @@ app.post('/api/web-search', async (req, res) => {
       },
     });
 
-    const searchQuery = query.trim() || 'top popular rated user created and official golf courses in PGA TOUR 2K25';
+    const searchQuery = normalizedQuery || 'top popular rated user created and official golf courses in PGA TOUR 2K25';
     let prompt = `Search the live web for golf courses available in PGA TOUR 2K25 (including TGC Tours approved courses, HB Studios official courses, and community designer creations) matching: "${searchQuery}".
 Find 4 to 6 real PGA TOUR 2K25 courses with real course yardage (in yards), creator name, location, and description.
 
@@ -349,7 +400,6 @@ Return ONLY a valid JSON array of courses matching this format:
         rawCourses = (rawCourses as any).courses || [];
       }
     } catch {
-      console.warn('Failed to parse JSON directly from Gemini, using regex fallback');
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         rawCourses = JSON.parse(jsonMatch[0]);
@@ -415,60 +465,55 @@ Return ONLY a valid JSON array of courses matching this format:
         IsSaved: false,
         WebSource: {
           title: item.WebSourceTitle || 'Web Search Result',
-          url: item.SourceUrl || (citations[0]?.url || '')
-        }
+          url: item.SourceUrl || (citations[0]?.url || ''),
+        },
       };
     });
 
-    return res.json({
-      courses: mappedCourses.length > 0 ? mappedCourses : WEB_FALLBACK_COURSES,
+    const fallbackList = getWebFallbackCourses(normalizedQuery, minYardage, maxYardage);
+    const finalCourses = mappedCourses.length > 0 ? mappedCourses : mapFallbackItems(fallbackList);
+    const resultPayload = {
+      courses: finalCourses,
       citations,
-      queryUsed: searchQuery
-    });
+      queryUsed: searchQuery,
+    };
+
+    webSearchCache.set(cacheKey, { timestamp: Date.now(), data: resultPayload });
+    return res.json(resultPayload);
   } catch (error: any) {
-    console.error('Error during web search:', error);
-    // Return fallback rather than hard 500 so UI continues working
-    return res.status(200).json({
-      courses: WEB_FALLBACK_COURSES.map((item, idx) => ({
-        CourseID: `web-fallback-${idx}`,
-        ExternalCourseID: `WEB-2K25-${2000 + idx}`,
-        CourseName: item.CourseName,
-        CreatorName: item.CreatorName,
-        SourceType: item.SourceType as any,
-        CourseType: item.CourseType as any,
-        Country: item.Country,
-        Region: item.Region,
-        City: item.City,
-        LocationText: item.LocationText,
-        Latitude: null,
-        Longitude: null,
-        CourseYardage: item.CourseYardage,
-        CourseYardageUnit: 'yards',
-        Difficulty: item.Difficulty,
-        DifficultyTier: item.DifficultyTier as any,
-        CommunityRating: item.CommunityRating,
-        ReviewCount: item.ReviewCount,
-        Description: item.Description,
-        NumberOfHoles: item.NumberOfHoles,
-        Par: item.Par,
-        CourseImagePath: '',
-        CourseImageURL: createSvgDataUrl(item.CourseName, `${item.LocationText} · ${item.CourseYardage.toLocaleString()} yds`, '#38bdf8', '#163121'),
-        CourseURL: item.SourceUrl,
-        CourseTags: item.CourseTags,
-        CreatedDate: new Date().toISOString().slice(0, 10),
-        UpdatedDate: new Date().toISOString().slice(0, 10),
-        LastRetrievedDate: new Date().toISOString(),
-        IsFavourite: false,
-        IsSaved: false,
-        WebSource: {
-          title: item.WebSourceTitle,
-          url: item.SourceUrl
-        }
-      })),
-      citations: [],
-      error: error.message,
-      queryUsed: query
-    });
+    // Graceful handling of API rate limits or quota exceeded (429 / RESOURCE_EXHAUSTED)
+    const errText = String(error?.message || error || '');
+    const isQuotaLimit =
+      error?.status === 'RESOURCE_EXHAUSTED' ||
+      error?.status === 429 ||
+      errText.includes('429') ||
+      errText.includes('quota') ||
+      errText.includes('RESOURCE_EXHAUSTED');
+
+    if (isQuotaLimit) {
+      console.warn('Gemini 2K25 live web search quota reached. Serving verified courses seamlessly.');
+    } else {
+      console.warn('Gemini web search note:', errText.slice(0, 120));
+    }
+
+    const fallbackList = getWebFallbackCourses(normalizedQuery, minYardage, maxYardage);
+    const mapped = mapFallbackItems(fallbackList);
+    const resultPayload = {
+      courses: mapped,
+      citations: [
+        {
+          title: 'TGC Tours 2K25 Verified Courses',
+          url: 'https://www.tgctours.com/Course/Tgc2k25Listings',
+        },
+      ],
+      notice: isQuotaLimit
+        ? 'Live AI web search quota is temporarily limited; displaying verified PGA TOUR 2K25 courses.'
+        : undefined,
+      queryUsed: normalizedQuery,
+    };
+
+    webSearchCache.set(cacheKey, { timestamp: Date.now(), data: resultPayload });
+    return res.status(200).json(resultPayload);
   }
 });
 

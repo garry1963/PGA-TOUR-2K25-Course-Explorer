@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Ruler,
   Award,
+  Plus,
 } from 'lucide-react';
 import { Course, PersonalReview } from '../types/golf';
 import { CourseCard } from './CourseCard';
@@ -24,6 +25,8 @@ interface DashboardViewProps {
   onToggleSave: (course: Course) => void;
   onToggleFavourite: (course: Course) => void;
   onNavigate: (view: any) => void;
+  onOpenAddCourseModal?: () => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -36,6 +39,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onToggleSave,
   onToggleFavourite,
   onNavigate,
+  onOpenAddCourseModal,
+  onOpenAddToCollection,
 }) => {
   // Stat cards metrics
   const totalYardageSaved = savedCourses.reduce((acc, c) => acc + (c.CourseYardage || 0), 0);
@@ -85,13 +90,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => onNavigate('search')}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors shrink-0 shadow-sm"
-        >
-          <span>Explore Course Catalog</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          {onOpenAddCourseModal && (
+            <button
+              onClick={onOpenAddCourseModal}
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md border border-emerald-500/50 cursor-pointer active:scale-95"
+              title="Add a custom course and save to any collection"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Course</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onNavigate('search')}
+            className="px-4 py-2.5 bg-[#142d20] hover:bg-[#1c3d2c] border border-emerald-600/40 text-emerald-300 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors shrink-0 shadow-sm"
+          >
+            <span>Explore Catalog</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* SECTION 5: DASHBOARD CARDS */}
@@ -197,6 +215,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}
@@ -235,6 +254,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}
@@ -286,6 +306,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}

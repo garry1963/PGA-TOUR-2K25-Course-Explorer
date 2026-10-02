@@ -26,6 +26,9 @@ interface CollectionsViewProps {
   onUpdateCollection: (collection: CourseCollection) => void;
   onDeleteCollection: (collectionId: string) => void;
   onRemoveCourseFromCollection: (collectionId: string, courseId: string) => void;
+  onOpenAddCourseModal?: (collectionId?: string) => void;
+  onAddToCollection?: (collectionId: string, courseId: string) => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const CollectionsView: React.FC<CollectionsViewProps> = ({
@@ -40,6 +43,9 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
   onUpdateCollection,
   onDeleteCollection,
   onRemoveCourseFromCollection,
+  onOpenAddCourseModal,
+  onAddToCollection,
+  onOpenAddToCollection,
 }) => {
   const [selectedColId, setSelectedColId] = useState<string>(collections[0]?.CollectionID || '');
   const [isCreating, setIsCreating] = useState(false);
@@ -234,7 +240,18 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center gap-2 self-start md:self-auto">
+              <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+                {onOpenAddCourseModal && (
+                  <button
+                    onClick={() => onOpenAddCourseModal(activeCollection.CollectionID)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 border border-emerald-500/50 cursor-pointer active:scale-95"
+                    title="Add a new course and save directly into this collection"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Course to Collection</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => onDeleteCollection(activeCollection.CollectionID)}
                   className="px-3 py-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-transparent hover:border-rose-800/60 rounded text-xs transition-colors flex items-center gap-1.5"
@@ -248,12 +265,23 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
 
             {/* Courses in this collection */}
             {collectionCourses.length === 0 ? (
-              <div className="p-12 text-center bg-[#09150e] border border-[#193524] rounded-xl space-y-2">
+              <div className="p-12 text-center bg-[#09150e] border border-[#193524] rounded-xl space-y-3">
                 <FolderOpen className="w-10 h-10 mx-auto text-slate-400" />
                 <h3 className="text-base font-semibold text-slate-200">No courses in this collection yet</h3>
-                <p className="text-xs text-slate-400">
-                  Open any course in search or saved courses, and use &quot;Add to Custom Collection&quot; to populate this list.
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Add custom courses directly with all course specifications and saved into this collection, or browse search results to populate this list.
                 </p>
+                {onOpenAddCourseModal && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => onOpenAddCourseModal(activeCollection.CollectionID)}
+                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-bold transition-all inline-flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Course to &quot;{activeCollection.CollectionName}&quot;</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -270,6 +298,7 @@ export const CollectionsView: React.FC<CollectionsViewProps> = ({
                         onViewCourse={onViewCourse}
                         onToggleSave={onToggleSave}
                         onToggleFavourite={onToggleFavourite}
+                        onOpenAddToCollection={onOpenAddToCollection}
                       />
                       {/* Remove from collection quick badge */}
                       <button

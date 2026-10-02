@@ -10,6 +10,7 @@ import {
   Edit3,
   Eye,
   Filter,
+  Plus,
 } from 'lucide-react';
 import { Course, CourseType, PersonalReview, SortOption } from '../types/golf';
 import { CourseCard } from './CourseCard';
@@ -23,6 +24,8 @@ interface SavedCoursesViewProps {
   onToggleSave: (course: Course) => void;
   onToggleFavourite: (course: Course) => void;
   onOpenSyncModal: () => void;
+  onOpenAddCourseModal?: () => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const SavedCoursesView: React.FC<SavedCoursesViewProps> = ({
@@ -33,6 +36,8 @@ export const SavedCoursesView: React.FC<SavedCoursesViewProps> = ({
   onToggleSave,
   onToggleFavourite,
   onOpenSyncModal,
+  onOpenAddCourseModal,
+  onOpenAddToCollection,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'All' | 'Official' | 'User Created'>('All');
@@ -181,12 +186,25 @@ export const SavedCoursesView: React.FC<SavedCoursesViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onOpenSyncModal}
-          className="px-3.5 py-1.5 bg-[#14281c] hover:bg-[#1a3826] border border-[#234832] text-emerald-300 rounded text-xs font-semibold transition-colors flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <span>Update Course Data</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {onOpenAddCourseModal && (
+            <button
+              onClick={onOpenAddCourseModal}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1.5 border border-emerald-500/50 cursor-pointer active:scale-95"
+              title="Add a custom course and save to any collection"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Course</span>
+            </button>
+          )}
+
+          <button
+            onClick={onOpenSyncModal}
+            className="px-3.5 py-1.5 bg-[#14281c] hover:bg-[#1a3826] border border-[#234832] text-emerald-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+          >
+            <span>Update Course Data</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -357,6 +375,7 @@ export const SavedCoursesView: React.FC<SavedCoursesViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}

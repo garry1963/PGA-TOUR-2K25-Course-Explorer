@@ -10,6 +10,7 @@ interface FavouritesViewProps {
   onViewCourse: (course: Course) => void;
   onToggleSave: (course: Course) => void;
   onToggleFavourite: (course: Course) => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const FavouritesView: React.FC<FavouritesViewProps> = ({
@@ -19,6 +20,7 @@ export const FavouritesView: React.FC<FavouritesViewProps> = ({
   onViewCourse,
   onToggleSave,
   onToggleFavourite,
+  onOpenAddToCollection,
 }) => {
   const [search, setSearch] = useState('');
   const [yardagePreset, setYardagePreset] = useState('Any');
@@ -160,6 +162,7 @@ export const FavouritesView: React.FC<FavouritesViewProps> = ({
                   onViewCourse={onViewCourse}
                   onToggleSave={onToggleSave}
                   onToggleFavourite={onToggleFavourite}
+                  onOpenAddToCollection={onOpenAddToCollection}
                 />
               );
             })}

@@ -12,6 +12,7 @@ import {
   Ruler,
   Award,
   ExternalLink,
+  Plus,
 } from 'lucide-react';
 import { AppSettings } from '../types/golf';
 
@@ -37,6 +38,7 @@ interface SidebarProps {
   };
   settings: AppSettings;
   onToggleUnit: () => void;
+  onOpenAddCourseModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   stats,
   settings,
   onToggleUnit,
+  onOpenAddCourseModal,
 }) => {
   const navItems: { id: NavView; label: string; icon: React.ReactNode; count?: number; badge?: string }[] = [
     {
@@ -146,6 +149,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
       </div>
+
+      {/* Add Course Quick Action */}
+      {onOpenAddCourseModal && (
+        <div className="p-3 border-t border-[#193223] bg-[#08120c]">
+          <button
+            onClick={onOpenAddCourseModal}
+            className="w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 border border-emerald-500/50 cursor-pointer active:scale-95"
+            title="Add a custom course and assign to collections"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Course</span>
+          </button>
+        </div>
+      )}
 
       {/* Bottom Section: TGC Tours 2K25 Quick Launcher & Yardage Bar */}
       <div className="border-t border-[#193223] bg-[#07100b] space-y-2 p-3 text-xs">

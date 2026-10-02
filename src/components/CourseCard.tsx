@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Bookmark, BookmarkCheck, Eye, MapPin, Award, Globe, ExternalLink } from 'lucide-react';
+import { Star, Bookmark, BookmarkCheck, Eye, MapPin, Award, Globe, ExternalLink, FolderPlus } from 'lucide-react';
 import { Course, PersonalReview } from '../types/golf';
 import { formatYardage, formatDifficulty } from '../utils/formatters';
 
@@ -10,6 +10,7 @@ interface CourseCardProps {
   onViewCourse: (course: Course) => void;
   onToggleSave: (course: Course) => void;
   onToggleFavourite: (course: Course) => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const CourseCard: React.FC<CourseCardProps> = ({
@@ -19,6 +20,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onViewCourse,
   onToggleSave,
   onToggleFavourite,
+  onOpenAddToCollection,
 }) => {
   const diff = formatDifficulty(course.Difficulty);
 
@@ -219,6 +221,20 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             <Eye className="w-3.5 h-3.5" />
             <span>View</span>
           </button>
+
+          {onOpenAddToCollection && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAddToCollection(course);
+              }}
+              className="py-1.5 px-2 bg-[#122218] hover:bg-[#183523] text-amber-300 hover:text-white rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors border border-[#21432e]"
+              title="Add this course and its information to any selected collection"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Collection</span>
+            </button>
+          )}
 
           <button
             onClick={() => onToggleSave(course)}

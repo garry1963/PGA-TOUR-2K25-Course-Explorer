@@ -19,6 +19,7 @@ import {
   Hash,
   Globe,
   ExternalLink,
+  FolderTree,
 } from 'lucide-react';
 import { Course, CourseCollection, PersonalReview } from '../types/golf';
 import { formatYardage, formatDifficulty, formatDate } from '../utils/formatters';
@@ -35,6 +36,7 @@ interface CourseDetailsModalProps {
   onDeleteReview: (reviewId: string) => void;
   onSavePersonalNotes: (courseId: string, notes: string) => void;
   onAddToCollection: (collectionId: string, courseId: string) => void;
+  onOpenAddToCollection?: (course: Course) => void;
 }
 
 export const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({
@@ -49,6 +51,7 @@ export const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({
   onDeleteReview,
   onSavePersonalNotes,
   onAddToCollection,
+  onOpenAddToCollection,
 }) => {
   // Review form state
   const [isEditingReview, setIsEditingReview] = useState(false);
@@ -563,42 +566,74 @@ export const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({
             </button>
           </div>
 
-          {/* Add to Custom Collection dropdown (Section 24 & 31) */}
-          <div className="p-3.5 bg-[#0a1610] border border-[#1a3826] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-4 h-4 text-emerald-400" />
-              <div>
-                <span className="text-xs font-semibold text-slate-200 block">Add to Custom Collection</span>
-                <span className="text-[11px] text-slate-400">Organise your courses into societies, lists, or custom themes</span>
+          {/* Add to Custom Collection dropdown & Manager (Section 24 & 31) */}
+          <div className="p-3.5 bg-[#0a1610] border border-[#1a3826] rounded-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="w-4 h-4 text-emerald-400" />
+                <div>
+                  <span className="text-xs font-semibold text-slate-200 block">Course Collections</span>
+                  <span className="text-[11px] text-slate-400">
+                    Organise and save this course with all its information into any selected collection
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={selectedCollectionId}
+                  onChange={(e) => setSelectedCollectionId(e.target.value)}
+                  className="px-2.5 py-1.5 bg-[#07100b] border border-[#234932] text-slate-200 text-xs rounded focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">Select a Collection...</option>
+                  {collections.map((c) => (
+                    <option key={c.CollectionID} value={c.CollectionID}>
+                      {c.CollectionName} ({c.CourseIDs.length})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddCollection}
+                  disabled={!selectedCollectionId}
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Add
+                </button>
+                {onOpenAddToCollection && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenAddToCollection(course)}
+                    className="px-3 py-1.5 bg-[#12281c] hover:bg-[#1a3826] border border-[#234832] text-amber-300 hover:text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Open multi-select collection manager"
+                  >
+                    <FolderTree className="w-3.5 h-3.5" />
+                    <span>Manage Collections</span>
+                  </button>
+                )}
+                {collectionAddedMsg && (
+                  <span className="text-xs text-emerald-400 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Added!
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedCollectionId}
-                onChange={(e) => setSelectedCollectionId(e.target.value)}
-                className="px-2.5 py-1.5 bg-[#07100b] border border-[#234932] text-slate-200 text-xs rounded focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">Select a Collection...</option>
-                {collections.map((c) => (
-                  <option key={c.CollectionID} value={c.CollectionID}>
-                    {c.CollectionName} ({c.CourseIDs.length})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleAddCollection}
-                disabled={!selectedCollectionId}
-                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors"
-              >
-                Add
-              </button>
-              {collectionAddedMsg && (
-                <span className="text-xs text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> Added!
-                </span>
-              )}
-            </div>
+            {/* List containing collections */}
+            {collections.filter((c) => c.CourseIDs.includes(course.CourseID)).length > 0 && (
+              <div className="pt-2 border-t border-[#162e20] flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-[11px] text-slate-400">Currently in:</span>
+                {collections
+                  .filter((c) => c.CourseIDs.includes(course.CourseID))
+                  .map((col) => (
+                    <span
+                      key={col.CollectionID}
+                      className="px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-600/40 text-emerald-300 text-[10px] font-medium"
+                    >
+                      {col.CollectionName}
+                    </span>
+                  ))}
+              </div>
+            )}
           </div>
 
           {/* Technical Metadata Footer */}
