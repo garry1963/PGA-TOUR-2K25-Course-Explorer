@@ -45,6 +45,7 @@ interface CourseSearchViewProps {
   initialQuery?: string;
   onOpenAddCourseModal?: () => void;
   onOpenAddToCollection?: (course: Course) => void;
+  onNavigateToTgcLibrary?: () => void;
 }
 
 const ALL_COURSE_TYPES: CourseType[] = [
@@ -91,6 +92,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
   initialQuery = '',
   onOpenAddCourseModal,
   onOpenAddToCollection,
+  onNavigateToTgcLibrary,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -433,6 +435,21 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
             </button>
           </div>
 
+          {/* Dedicated Full TGC Library Quick Link */}
+          {onNavigateToTgcLibrary && (
+            <button
+              onClick={onNavigateToTgcLibrary}
+              className="px-3 py-2 bg-[#172e20] hover:bg-[#1f3f2b] text-amber-300 border border-amber-500/40 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
+              title="Open the complete TGC Tours 2K25 course library with full directory view"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-400" />
+              <span>TGC Full Library</span>
+              <span className="text-[9px] uppercase px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded font-mono">
+                130+
+              </span>
+            </button>
+          )}
+
           {/* Add Course & Assign to Collections Button */}
           {onOpenAddCourseModal && (
             <button
@@ -471,6 +488,18 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
                 {copiedUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                 <span>{copiedUrl ? 'Copied URL!' : 'Copy Link'}</span>
               </button>
+
+              {onNavigateToTgcLibrary && (
+                <button
+                  type="button"
+                  onClick={onNavigateToTgcLibrary}
+                  className="px-3 py-1 rounded bg-[#173624] hover:bg-[#204931] border border-amber-500/50 text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                  title="Open the dedicated full library viewer"
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Full Library Directory</span>
+                </button>
+              )}
 
               <a
                 href="https://www.tgctours.com/Course/Tgc2k25Listings"

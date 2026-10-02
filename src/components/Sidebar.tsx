@@ -18,6 +18,7 @@ import { AppSettings } from '../types/golf';
 
 export type NavView =
   | 'dashboard'
+  | 'tgc-library'
   | 'search'
   | 'saved'
   | 'favourites'
@@ -35,6 +36,7 @@ interface SidebarProps {
     favouritesCount: number;
     reviewsCount: number;
     collectionsCount: number;
+    tgcLibraryCount?: number;
   };
   settings: AppSettings;
   onToggleUnit: () => void;
@@ -56,10 +58,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <LayoutDashboard className="w-4 h-4" />,
     },
     {
-      id: 'search',
-      label: 'TGC Tours 2K25 Search',
+      id: 'tgc-library',
+      label: 'TGC Full Library',
       icon: <Award className="w-4 h-4 text-amber-400" />,
-      badge: 'Main',
+      badge: stats.tgcLibraryCount ? `${stats.tgcLibraryCount}` : 'Full Library',
+    },
+    {
+      id: 'search',
+      label: 'Course Search',
+      icon: <Search className="w-4 h-4 text-emerald-400" />,
+      badge: 'Live',
     },
     {
       id: 'saved',

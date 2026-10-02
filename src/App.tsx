@@ -28,6 +28,7 @@ import { CourseDetailsModal } from './components/CourseDetailsModal';
 import { SyncModal } from './components/SyncModal';
 import { AddCourseModal } from './components/AddCourseModal';
 import { AddToCollectionModal } from './components/AddToCollectionModal';
+import { TgcLibraryView } from './components/TgcLibraryView';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
@@ -329,6 +330,16 @@ export default function App() {
 
   const favourites = combineCourses(savedCourses.filter((c) => c.IsFavourite));
 
+  const tgcCoursesCount = React.useMemo(() => {
+    return allCourses.filter(
+      (c) =>
+        Boolean(c.TgcStatus) ||
+        c.CourseID.toLowerCase().startsWith('tgc-') ||
+        (c.CourseTags && c.CourseTags.some((t) => t.toLowerCase().includes('tgc') || t.toLowerCase().includes('tour worthy'))) ||
+        Boolean(c.TgcListingUrl)
+    ).length;
+  }, [allCourses]);
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#07110b] text-slate-100 font-sans">
       {/* 1. Windows 11 Title Bar */}
@@ -352,6 +363,7 @@ export default function App() {
             favouritesCount: favourites.length,
             reviewsCount: reviews.length,
             collectionsCount: collections.length,
+            tgcLibraryCount: tgcCoursesCount || 130,
           }}
           settings={settings}
           onToggleUnit={handleToggleYardageUnit}
@@ -376,6 +388,23 @@ export default function App() {
             />
           )}
 
+          {currentView === 'tgc-library' && (
+            <TgcLibraryView
+              allCourses={combineCourses(allCourses, savedCourses)}
+              savedCourses={savedCourses}
+              favourites={favourites}
+              collections={collections}
+              reviews={reviews}
+              yardageUnit={settings.yardageUnit}
+              onViewCourse={handleViewCourse}
+              onToggleSave={handleToggleSaveCourse}
+              onToggleFavourite={handleToggleFavourite}
+              onOpenAddCourseModal={() => handleOpenAddCourseModal()}
+              onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
+              onNavigateToMap={() => setCurrentView('map')}
+            />
+          )}
+
           {currentView === 'search' && (
             <CourseSearchView
               yardageUnit={settings.yardageUnit}
@@ -386,6 +415,7 @@ export default function App() {
               onToggleFavourite={handleToggleFavourite}
               onOpenAddCourseModal={() => handleOpenAddCourseModal()}
               onOpenAddToCollection={(course) => setCourseToAddToCollection(course)}
+              onNavigateToTgcLibrary={() => setCurrentView('tgc-library')}
             />
           )}
 

@@ -16,7 +16,48 @@ app.use(express.json());
 
 // TGC Tours 2K25 Listings Curated Database (https://www.tgctours.com/Course/Tgc2k25Listings)
 import { TGC_2K25_LISTINGS_DATA } from './src/data/tgc2k25Listings';
-export { TGC_2K25_LISTINGS_DATA };
+import { EXTENDED_TGC_2K25_COURSES } from './src/data/tgc2k25Courses';
+export { TGC_2K25_LISTINGS_DATA, EXTENDED_TGC_2K25_COURSES };
+
+// Combined full TGC Tours library
+const serverExtendedMap = new Map<string, any>();
+for (const ext of EXTENDED_TGC_2K25_COURSES) {
+  serverExtendedMap.set(ext.CourseID, ext);
+  serverExtendedMap.set(ext.CourseName.toLowerCase().trim(), ext);
+}
+
+const serverListingIds = new Set(TGC_2K25_LISTINGS_DATA.map((c) => c.CourseID));
+const additionalServerCourses = EXTENDED_TGC_2K25_COURSES.filter((c) => !serverListingIds.has(c.CourseID)).map((c) => ({
+  CourseID: c.CourseID,
+  ExternalCourseID: c.ExternalCourseID,
+  CourseName: c.CourseName,
+  CreatorName: c.CreatorName,
+  SourceType: c.SourceType as any,
+  CourseType: c.CourseType as any,
+  Country: c.Country,
+  Region: c.Region,
+  City: c.City,
+  LocationText: c.LocationText,
+  CourseYardage: c.CourseYardage,
+  Par: c.Par,
+  NumberOfHoles: c.NumberOfHoles,
+  Difficulty: c.Difficulty,
+  DifficultyTier: c.DifficultyTier as any,
+  CommunityRating: c.CommunityRating,
+  ReviewCount: c.ReviewCount,
+  Description: c.Description,
+  CourseTags: c.CourseTags || ['Tour Worthy', 'TGC Approved'],
+  TgcStatus: (c.TgcStatus || 'Tour Worthy') as any,
+  TgcListingUrl: c.TgcListingUrl || 'https://www.tgctours.com/Course/Tgc2k25Listings',
+  IsLidar: c.IsLidar || false,
+  GreenSpeed: c.GreenSpeed || 'Fast (155)',
+  Firmness: c.Firmness || 'Firm',
+  TeeInformation: c.TeeInformation,
+  GreenInformation: c.GreenInformation,
+  FairwayInformation: c.FairwayInformation,
+}));
+
+const ALL_TGC_SERVER_LISTINGS = [...TGC_2K25_LISTINGS_DATA, ...additionalServerCourses];
 
 // Dynamic curated web search results from verified PGA TOUR 2K25 listings
 function getWebFallbackCourses(query: string, minYardage?: number | null, maxYardage?: number | null) {
@@ -156,7 +197,7 @@ app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
   } = params;
 
   try {
-    let results = [...TGC_2K25_LISTINGS_DATA];
+    let results = [...ALL_TGC_SERVER_LISTINGS];
 
     // Filter by query
     if (query && typeof query === 'string' && query.trim()) {
@@ -208,6 +249,7 @@ app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
 
     // Format into standard Course objects with SVG image URLs
     const formattedCourses = results.map((item) => {
+      const ext = serverExtendedMap.get(item.CourseID) || serverExtendedMap.get(item.CourseName.toLowerCase().trim());
       const accent = item.TgcStatus === 'Tour Worthy' ? '#eab308' : item.TgcStatus === 'Platinum Tour' ? '#c084fc' : '#34d399';
       return {
         CourseID: item.CourseID,
@@ -220,8 +262,8 @@ app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
         Region: item.Region,
         City: item.City,
         LocationText: item.LocationText,
-        Latitude: null,
-        Longitude: null,
+        Latitude: ext?.Latitude ?? null,
+        Longitude: ext?.Longitude ?? null,
         CourseYardage: item.CourseYardage,
         CourseYardageUnit: 'yards' as const,
         Difficulty: item.Difficulty,

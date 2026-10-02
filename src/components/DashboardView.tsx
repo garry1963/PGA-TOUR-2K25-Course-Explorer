@@ -103,6 +103,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
 
           <button
+            onClick={() => onNavigate('tgc-library')}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md border border-amber-400/50 cursor-pointer active:scale-95 shrink-0"
+            title="Browse and search the complete TGC Tours course library"
+          >
+            <Award className="w-4 h-4 text-amber-200" />
+            <span>TGC Full Library</span>
+          </button>
+
+          <button
             onClick={() => onNavigate('search')}
             className="px-4 py-2.5 bg-[#142d20] hover:bg-[#1c3d2c] border border-emerald-600/40 text-emerald-300 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors shrink-0 shadow-sm"
           >
@@ -178,6 +187,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Across your saved library
           </span>
         </div>
+      </div>
+
+      {/* TGC Tours Full Course Library Feature Banner */}
+      <div className="bg-gradient-to-r from-[#14281b] via-[#1a3826] to-[#122419] border border-amber-500/40 rounded-xl p-4 lg:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+            <Award className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-black">
+                Featured Library
+              </span>
+              <span className="text-xs text-amber-300 font-mono">130+ Verified Courses</span>
+            </div>
+            <h2 className="text-sm lg:text-base font-bold text-white mt-1">
+              TGC Tours Official 2K25 Full Course Library
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed max-w-xl">
+              Browse Tour Worthy certified layouts, Platinum and Elite Tour tournament hosts, and LiDAR real-world replicas. Filter by green speeds, yardage, and designer.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigate('tgc-library')}
+          className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 shrink-0 border border-amber-400/50 cursor-pointer"
+        >
+          <span>Open Full Library</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
 
       {/* SECTION 5: RECENTLY VIEWED (Last 5-10 courses viewed) */}
