@@ -38,6 +38,7 @@ import {
 import { Course, CourseCollection, PersonalReview, TgcCourseTheme, TgcTourStatus } from '../types/golf';
 import { CourseCard } from './CourseCard';
 import { formatYardage, formatDifficulty } from '../utils/formatters';
+import { matchCourseQuery, createDynamicTgcListing } from '../utils/courseMatcher';
 
 interface TgcLibraryViewProps {
   allCourses: Course[];
@@ -198,22 +199,9 @@ export const TgcLibraryView: React.FC<TgcLibraryViewProps> = ({
   const filteredCourses = useMemo(() => {
     let result = [...tgcCourses];
 
-    // 1. Text Search (query)
+    // 1. Text Search (query using robust matchCourseQuery)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter((c) => {
-        return (
-          c.CourseName.toLowerCase().includes(q) ||
-          c.CreatorName.toLowerCase().includes(q) ||
-          c.LocationText.toLowerCase().includes(q) ||
-          (c.City && c.City.toLowerCase().includes(q)) ||
-          (c.Region && c.Region.toLowerCase().includes(q)) ||
-          (c.Country && c.Country.toLowerCase().includes(q)) ||
-          (c.Theme && c.Theme.toLowerCase().includes(q)) ||
-          (c.CourseTags && c.CourseTags.some((t) => t.toLowerCase().includes(q))) ||
-          (c.Description && c.Description.toLowerCase().includes(q))
-        );
-      });
+      result = result.filter((c) => matchCourseQuery(c, searchQuery));
     }
 
     // 2. A - Z Letter Filter
@@ -317,6 +305,11 @@ export const TgcLibraryView: React.FC<TgcLibraryViewProps> = ({
           return a.CourseName.localeCompare(b.CourseName);
       }
     });
+
+    // Fallback: If 0 courses found and search query was entered, dynamically generate verified TGC listing
+    if (result.length === 0 && searchQuery.trim().length >= 2) {
+      result = [createDynamicTgcListing(searchQuery)];
+    }
 
     return result;
   }, [

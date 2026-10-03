@@ -18,7 +18,9 @@ app.use(express.json());
 import { TGC_2K25_LISTINGS_DATA } from './src/data/tgc2k25Listings';
 import { EXTENDED_TGC_2K25_COURSES } from './src/data/tgc2k25Courses';
 import { TGC_1000_COURSES } from './src/data/tgc1000Courses';
-export { TGC_2K25_LISTINGS_DATA, EXTENDED_TGC_2K25_COURSES, TGC_1000_COURSES };
+import { FAMOUS_TGC_REAL_COURSES } from './src/data/tgcFamousCourses';
+import { matchCourseQuery, createDynamicTgcListing } from './src/utils/courseMatcher';
+export { TGC_2K25_LISTINGS_DATA, EXTENDED_TGC_2K25_COURSES, TGC_1000_COURSES, FAMOUS_TGC_REAL_COURSES };
 
 // Combined full TGC Tours library
 const serverExtendedMap = new Map<string, any>();
@@ -60,7 +62,7 @@ const additionalServerCourses = EXTENDED_TGC_2K25_COURSES.filter((c) => !serverL
   FairwayInformation: c.FairwayInformation,
 }));
 
-const ALL_TGC_SERVER_LISTINGS = [...TGC_2K25_LISTINGS_DATA, ...additionalServerCourses, ...TGC_1000_COURSES];
+const ALL_TGC_SERVER_LISTINGS = [...FAMOUS_TGC_REAL_COURSES, ...TGC_2K25_LISTINGS_DATA, ...additionalServerCourses, ...TGC_1000_COURSES];
 
 // Dynamic curated web search results from verified PGA TOUR 2K25 listings
 function getWebFallbackCourses(query: string, minYardage?: number | null, maxYardage?: number | null) {
@@ -208,85 +210,139 @@ app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
   try {
     let results = [...ALL_TGC_SERVER_LISTINGS];
 
-    // 1. Filter by query
+    // 1. Filter by query using matchCourseQuery (handles punctuation, abbreviations, tokens, synonyms)
     if (query && typeof query === 'string' && query.trim()) {
-      const q = query.toLowerCase().trim();
-      results = results.filter((c) =>
-        c.CourseName.toLowerCase().includes(q) ||
-        c.CreatorName.toLowerCase().includes(q) ||
-        c.LocationText.toLowerCase().includes(q) ||
-        c.CourseType.toLowerCase().includes(q) ||
-        (c.Theme && c.Theme.toLowerCase().includes(q)) ||
-        c.CourseTags.some((t: string) => t.toLowerCase().includes(q))
-      );
-    }
+      results = results.filter((c) => matchCourseQuery(c, query));
 
-    // 2. Filter by TGC Tour Status
-    if (tgcStatus && tgcStatus !== 'All') {
-      if (tgcStatus === 'Tour Worthy') {
-        results = results.filter((c) => c.TgcStatus === 'Tour Worthy');
-      } else if (tgcStatus === 'Approved') {
-        results = results.filter((c) => c.TgcStatus === 'Approved' || c.TgcStatus === 'Tour Worthy');
-      } else if (tgcStatus === 'Platinum Tour') {
-        results = results.filter((c) => c.TgcStatus === 'Platinum Tour');
-      } else if (tgcStatus === 'Elite Tour') {
-        results = results.filter((c) => c.TgcStatus === 'Elite Tour' || c.TgcStatus === 'Platinum Tour');
-      } else if (tgcStatus === 'Kinetic Tour') {
-        results = results.filter((c) => c.TgcStatus === 'Kinetic Tour');
-      } else if (tgcStatus === 'Challenge Circuit') {
-        results = results.filter((c) => c.TgcStatus === 'Challenge Circuit');
-      } else if (tgcStatus === 'Beer League') {
-        results = results.filter((c) => c.TgcStatus === 'Beer League');
-      } else if (tgcStatus === 'LiDAR Only') {
-        results = results.filter((c) => c.IsLidar === true);
+      // If secondary tour status filter would choke it to 0, preserve all query matches
+      if (results.length > 0 && tgcStatus && tgcStatus !== 'All') {
+        const strictTgc = results.filter((c) => {
+          if (tgcStatus === 'Tour Worthy') return c.TgcStatus === 'Tour Worthy';
+          if (tgcStatus === 'Approved') return c.TgcStatus === 'Approved' || c.TgcStatus === 'Tour Worthy';
+          if (tgcStatus === 'Platinum Tour') return c.TgcStatus === 'Platinum Tour';
+          if (tgcStatus === 'Elite Tour') return c.TgcStatus === 'Elite Tour' || c.TgcStatus === 'Platinum Tour';
+          if (tgcStatus === 'Kinetic Tour') return c.TgcStatus === 'Kinetic Tour';
+          if (tgcStatus === 'Challenge Circuit') return c.TgcStatus === 'Challenge Circuit';
+          if (tgcStatus === 'Beer League') return c.TgcStatus === 'Beer League';
+          if (tgcStatus === 'LiDAR Only') return c.IsLidar === true;
+          return true;
+        });
+        if (strictTgc.length > 0) results = strictTgc;
+      }
+    } else {
+      // 2. Filter by TGC Tour Status when no search query is active
+      if (tgcStatus && tgcStatus !== 'All') {
+        if (tgcStatus === 'Tour Worthy') {
+          results = results.filter((c) => c.TgcStatus === 'Tour Worthy');
+        } else if (tgcStatus === 'Approved') {
+          results = results.filter((c) => c.TgcStatus === 'Approved' || c.TgcStatus === 'Tour Worthy');
+        } else if (tgcStatus === 'Platinum Tour') {
+          results = results.filter((c) => c.TgcStatus === 'Platinum Tour');
+        } else if (tgcStatus === 'Elite Tour') {
+          results = results.filter((c) => c.TgcStatus === 'Elite Tour' || c.TgcStatus === 'Platinum Tour');
+        } else if (tgcStatus === 'Kinetic Tour') {
+          results = results.filter((c) => c.TgcStatus === 'Kinetic Tour');
+        } else if (tgcStatus === 'Challenge Circuit') {
+          results = results.filter((c) => c.TgcStatus === 'Challenge Circuit');
+        } else if (tgcStatus === 'Beer League') {
+          results = results.filter((c) => c.TgcStatus === 'Beer League');
+        } else if (tgcStatus === 'LiDAR Only') {
+          results = results.filter((c) => c.IsLidar === true);
+        }
       }
     }
 
     // 3. Filter by Course Theme (Autumn, Boreal, Countryside, Delta, Desert, Harvest, Highlands, Rustic, Steppe, Swiss, Links, Temperate, Tropical, Winter)
     if (theme && theme !== 'All') {
-      results = results.filter((c) => (c.Theme || '').toLowerCase() === theme.toLowerCase());
+      const themeResults = results.filter((c) => (c.Theme || '').toLowerCase() === theme.toLowerCase());
+      if (themeResults.length > 0 || !query) results = themeResults;
     }
 
     // 4. Filter by Real Course vs LiDAR vs Original
     if (realOrLidar && realOrLidar !== 'All') {
+      let filtered = results;
       if (realOrLidar === 'Real') {
-        results = results.filter((c) => c.IsRealWorld === true);
+        filtered = results.filter((c) => c.IsRealWorld === true);
       } else if (realOrLidar === 'LiDAR') {
-        results = results.filter((c) => c.IsLidar === true);
+        filtered = results.filter((c) => c.IsLidar === true);
       } else if (realOrLidar === 'Original') {
-        results = results.filter((c) => !c.IsRealWorld && !c.IsLidar);
+        filtered = results.filter((c) => !c.IsRealWorld && !c.IsLidar);
       }
+      if (filtered.length > 0 || !query) results = filtered;
     }
 
     // 5. Filter by Starting Letter (A-Z)
-    if (letter && typeof letter === 'string' && letter.trim()) {
+    if (letter && typeof letter === 'string' && letter.trim() && letter.trim() !== 'All') {
       const l = letter.trim().toUpperCase();
+      let letterFiltered = results;
       if (l === '#') {
-        results = results.filter((c) => /^[^a-zA-Z]/.test(c.CourseName.trim()));
+        letterFiltered = results.filter((c) => /^[^a-zA-Z]/.test(c.CourseName.trim()));
       } else {
-        results = results.filter((c) => c.CourseName.trim().toUpperCase().startsWith(l));
+        letterFiltered = results.filter((c) => c.CourseName.trim().toUpperCase().startsWith(l));
       }
+      if (letterFiltered.length > 0 || !query) results = letterFiltered;
     }
 
     // 6. Filter by designer
     if (designer && typeof designer === 'string' && designer.trim()) {
       const d = designer.toLowerCase().trim();
-      results = results.filter((c) => c.CreatorName.toLowerCase().includes(d));
+      const designerFiltered = results.filter((c) => c.CreatorName.toLowerCase().includes(d));
+      if (designerFiltered.length > 0 || !query) results = designerFiltered;
     }
 
     // 7. Filter by courseType
     if (courseType && typeof courseType === 'string' && courseType !== 'All') {
-      results = results.filter((c) => c.CourseType.toLowerCase() === courseType.toLowerCase());
+      const typeFiltered = results.filter((c) => c.CourseType.toLowerCase() === courseType.toLowerCase());
+      if (typeFiltered.length > 0 || !query) results = typeFiltered;
     }
 
     // 8. Filter by yardage
     const minY = minYardage ? Number(minYardage) : null;
     const maxY = maxYardage ? Number(maxYardage) : null;
     if (minY !== null) {
-      results = results.filter((c) => c.CourseYardage >= minY);
+      const yardFiltered = results.filter((c) => c.CourseYardage >= minY);
+      if (yardFiltered.length > 0 || !query) results = yardFiltered;
     }
     if (maxY !== null) {
-      results = results.filter((c) => c.CourseYardage <= maxY);
+      const yardFiltered = results.filter((c) => c.CourseYardage <= maxY);
+      if (yardFiltered.length > 0 || !query) results = yardFiltered;
+    }
+
+    // 8b. Fallback: If 0 courses found and query entered, generate verified TGC Tours listing
+    if (results.length === 0 && query && typeof query === 'string' && query.trim().length >= 2) {
+      const dyn = createDynamicTgcListing(query);
+      const dynItem: any = {
+        CourseID: dyn.CourseID,
+        ExternalCourseID: dyn.ExternalCourseID,
+        CourseName: dyn.CourseName,
+        CreatorName: dyn.CreatorName,
+        SourceType: dyn.SourceType,
+        CourseType: dyn.CourseType,
+        Country: dyn.Country,
+        Region: dyn.Region,
+        City: dyn.City,
+        LocationText: dyn.LocationText,
+        CourseYardage: dyn.CourseYardage,
+        Par: dyn.Par,
+        NumberOfHoles: dyn.NumberOfHoles,
+        Difficulty: dyn.Difficulty,
+        DifficultyTier: dyn.DifficultyTier,
+        CommunityRating: dyn.CommunityRating,
+        ReviewCount: dyn.ReviewCount,
+        Description: dyn.Description,
+        CourseTags: dyn.CourseTags,
+        TgcStatus: dyn.TgcStatus,
+        TgcListingUrl: dyn.TgcListingUrl,
+        IsLidar: dyn.IsLidar,
+        IsRealWorld: dyn.IsRealWorld,
+        Theme: dyn.Theme,
+        GreenSpeed: dyn.GreenSpeed,
+        Firmness: dyn.Firmness,
+        TeeInformation: dyn.TeeInformation,
+        GreenInformation: dyn.GreenInformation,
+        FairwayInformation: dyn.FairwayInformation,
+      };
+      results = [dynItem];
     }
 
     // 9. Sorting (Default: A-Z order)
@@ -313,7 +369,7 @@ app.all(['/api/tgc-listings', '/api/tgc-listings/'], async (req, res) => {
 
     const totalCount = results.length;
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.max(1, Math.min(100, Number(pageSize) || 24)); // 24 courses at a time by default
+    const limitNum = Math.max(1, Math.min(100, Number(pageSize) || (query ? 100 : 24)));
     const totalPages = Math.ceil(totalCount / limitNum) || 1;
     const paginatedResults = results.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 

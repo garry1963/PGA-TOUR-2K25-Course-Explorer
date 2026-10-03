@@ -119,7 +119,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
   });
 
   const [results, setResults] = useState<Course[]>([]);
-  const [visibleCount, setVisibleCount] = useState<number>(10);
+  const [visibleCount, setVisibleCount] = useState<number>(24);
   const [webCitations, setWebCitations] = useState<WebCitation[]>([]);
   const [webNotice, setWebNotice] = useState<string | null>(null);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
@@ -131,7 +131,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
 
   // Perform search
   const executeSearch = async (currentFilters: SearchFilters) => {
-    setVisibleCount(10);
+    setVisibleCount(24);
     setLoading(true);
     setErrorMsg(null);
     setWebNotice(null);
@@ -264,10 +264,14 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
     });
   };
 
-  // Run on filter change or initial mount
+  // Run on filter change or when typing query (debounced 250ms for smooth live search)
   useEffect(() => {
-    executeSearch(filters);
+    const timer = setTimeout(() => {
+      executeSearch(filters);
+    }, 250);
+    return () => clearTimeout(timer);
   }, [
+    filters.query,
     filters.searchMode,
     filters.tgcStatus,
     filters.yardagePreset,
@@ -279,6 +283,8 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
     filters.source,
     filters.courseTypes,
     filters.sortBy,
+    filters.creator,
+    filters.location,
     simulateOffline,
   ]);
 
@@ -288,7 +294,7 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
   };
 
   const handleClearFilters = () => {
-    setVisibleCount(10);
+    setVisibleCount(24);
     const defaultFilters: SearchFilters = {
       query: '',
       creator: '',
@@ -358,14 +364,14 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  // Deduplicate results and calculate chunked / paginated display (10 courses initially + 10 more on request)
+  // Deduplicate results and calculate chunked / paginated display (24 courses at a time)
   const deduplicatedResults = results.filter(
     (course, index, self) => index === self.findIndex((c) => c.CourseID === course.CourseID)
   );
   const totalAvailable = deduplicatedResults.length;
   const displayedCourses = deduplicatedResults.slice(0, visibleCount);
   const remainingCount = Math.max(0, totalAvailable - displayedCourses.length);
-  const nextBatchCount = Math.min(10, remainingCount);
+  const nextBatchCount = Math.min(24, remainingCount);
   const hasMore = remainingCount > 0;
 
   return (
@@ -1144,21 +1150,21 @@ export const CourseSearchView: React.FC<CourseSearchViewProps> = ({
 
               {hasMore ? (
                 <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto pt-1">
-                  {/* Reusable Primary Option: Display Another 10 Courses */}
+                  {/* Reusable Primary Option: Display Another 24 Courses */}
                   <button
                     type="button"
-                    onClick={() => setVisibleCount((prev) => prev + 10)}
+                    onClick={() => setVisibleCount((prev) => prev + 24)}
                     className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-semibold text-xs rounded-lg shadow-md hover:shadow-emerald-900/40 border border-emerald-500/50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
                   >
                     <ChevronDown className="w-4 h-4 animate-bounce" />
-                    <span>Display Another 10 Courses</span>
+                    <span>Display Another 24 Courses</span>
                     <span className="px-2 py-0.5 bg-emerald-950/80 border border-emerald-400/40 rounded-full text-[10px] font-mono text-emerald-200">
                       +{nextBatchCount} ({remainingCount} remaining)
                     </span>
                   </button>
 
                   {/* Option to display all remaining courses at once */}
-                  {remainingCount > 10 && (
+                  {remainingCount > 24 && (
                     <button
                       type="button"
                       onClick={() => setVisibleCount(totalAvailable)}
